@@ -5,8 +5,6 @@ var mapWin, center = [22.528176, 113.928448];
 
 var vs = {}, vsc = {}, sortKey;
 
-window.oncontextmenu = function(){return false};
-
 window.addEventListener('message', function(event) {
   if( event.data == 'render-ready' ) {
     ready = true;
@@ -329,6 +327,7 @@ function render() {
   var r = filter(portals);
   if( r && r.length > 0 ) {
     dr.postMessage({result: {list: r}}, '*');
+    mapWin.postMessage({filteredResult: {list: r}}, '*');
   } else {
     view( '<div class="notify">No Portals Matched This Level</div>', true );
   }

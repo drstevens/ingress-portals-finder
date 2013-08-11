@@ -65,44 +65,81 @@ window.addEventListener('message', function(event) {
     return event.source.postMessage('map-failed', target);
   }
 
-  if( d === 'BOUNDS' ) {
-    var bounds = ingr.getBounds()
-      , sw = bounds.getSouthWest()
-      , ne = bounds.getNorthEast()
-      , center = ingr.getCenter();
+  if( event.data.filteredResult !== undefined ) {
+    //draw heatmap on top of map
+    var portals = event.data.filteredResult.list
+    setupHeatMap(ingr, portals)
+  } else {
+    if( d === 'BOUNDS' ) {
+      var bounds = ingr.getBounds()
+        , sw = bounds.getSouthWest()
+        , ne = bounds.getNorthEast()
+        , center = ingr.getCenter();
 
-    event.source.postMessage( {bounds: [[sw.lat().toFixed(6), sw.lng().toFixed(6)], [ne.lat().toFixed(6), ne.lng().toFixed(6)]], center: [center.lat().toFixed(6), center.lng().toFixed(6)], zoom: ingr.getZoom()}, target );
-    sw = ne = center = bounds = null;
-    return true;
+      event.source.postMessage( {bounds: [[sw.lat().toFixed(6), sw.lng().toFixed(6)], [ne.lat().toFixed(6), ne.lng().toFixed(6)]], center: [center.lat().toFixed(6), center.lng().toFixed(6)], zoom: ingr.getZoom()}, target );
+      sw = ne = center = bounds = null;
+      return true;
+    }
+
+    if( d && d.key ) {
+      var job = document.createElement('script');
+      job.onload = function(){
+        if( window.google && window.google.maps ) {
+          initialize();
+          lastd && process( lastd );
+          if( ingr ) lastd = null;
+        }
+      };
+      job.src = 'https://maps.googleapis.com/maps/api/js?key='+d.key+'&sensor=true';
+      document.body.appendChild( job );
+      job = null;
+      return true;
+    }
+
+    if( !d || d.x === undefined || d.y === undefined)
+      return false;
+    
+    if( d && d.lvi ) {
+      lvi = d.lvi;
+      delete d.lvi;
+    }
+
+    process(d);
   }
-
-  if( d && d.key ) {
-    var job = document.createElement('script');
-    job.onload = function(){
-      if( window.google && window.google.maps ) {
-        initialize();
-        lastd && process( lastd );
-        if( ingr ) lastd = null;
-      }
-    };
-    job.src = 'https://maps.googleapis.com/maps/api/js?key='+d.key+'&sensor=true';
-    document.body.appendChild( job );
-    job = null;
-    return true;
-  }
-
-  if( !d || d.x === undefined || d.y === undefined)
-    return false;
-  
-  if( d && d.lvi ) {
-    lvi = d.lvi;
-    delete d.lvi;
-  }
-
-  process(d);
 });
 
 var lvi = {};
+
+function setupHeatMap(map, portals) {
+  var latLongs = portals.map(function (portal) { return new google.maps.LatLng(parseFloat(portal.lat), parseFloat(portal.lng)); });
+
+  var gradient = [
+    'rgba(0, 255, 255, 0)',
+    'rgba(0, 255, 255, 1)',
+    'rgba(0, 191, 255, 1)',
+    'rgba(0, 127, 255, 1)',
+    'rgba(0, 63, 255, 1)',
+    'rgba(0, 0, 255, 1)',
+    'rgba(0, 0, 223, 1)',
+    'rgba(0, 0, 191, 1)',
+    'rgba(0, 0, 159, 1)',
+    'rgba(0, 0, 127, 1)',
+    'rgba(63, 0, 91, 1)',
+    'rgba(127, 0, 63, 1)',
+    'rgba(191, 0, 31, 1)',
+    'rgba(255, 0, 0, 1)'
+  ];
+
+  //https://google-developers.appspot.com/maps/documentation/javascript/examples/layer-heatmap
+  var heatmap = new google.maps.visualization.HeatmapLayer({
+    gradient: gradient,
+    // radius: 20,
+    // opacity: 1.0,
+    data: latLongs
+  });
+
+  heatmap.setMap(map);
+}
 
 function process(d){
   if( !window.google || !ingr ) {
